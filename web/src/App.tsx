@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useCallback, useEffect } from 'react'
 import { TopBar } from './components/TopBar'
 import { Hero } from './components/Hero'
 import { DiscoverySection } from './components/DiscoverySection'
@@ -15,6 +15,10 @@ import { useExhibit } from './state/store'
 import { TourOverlay } from './tour/TourOverlay'
 import { WelcomeCard } from './tour/WelcomeCard'
 import { useTour } from './tour/useTour'
+import { DataRain, FxRoot, ScanlineOverlay, useRandomGlitch } from './fx/Effects'
+import { Ticker } from './fx/Ticker'
+import { BootSequence } from './fx/BootSequence'
+import { Soundtrack } from './fx/Soundtrack'
 
 export default function App() {
   const core = useCorePredictions()
@@ -23,12 +27,13 @@ export default function App() {
   useEffect(() => {
     // Load ONNX Runtime after first paint; the precomputed table covers the meantime.
     const id = window.setTimeout(warmUp, 50)
-    // Offer the tour to first-time visitors once the map has had a moment to appear.
-    const welcome = window.setTimeout(() => useTour.getState().showWelcomeIfNew(), 1200)
-    return () => {
-      window.clearTimeout(id)
-      window.clearTimeout(welcome)
-    }
+    return () => window.clearTimeout(id)
+  }, [])
+  useRandomGlitch()
+
+  // Offer the tour to first-time visitors once the boot sequence (if any) is over.
+  const afterBoot = useCallback(() => {
+    window.setTimeout(() => useTour.getState().showWelcomeIfNew(), 600)
   }, [])
 
   const scenarioText = liveScenarioSummary(describeScenario(core.scenario), core.scenarioWait, core.plusOneWait)
@@ -38,7 +43,10 @@ export default function App() {
       <a className="skip-link" href="#discovery">
         Skip to the findings
       </a>
-      <TopBar />
+      <FxRoot />
+      <Soundtrack />
+      <DataRain />
+      <TopBar ticker={<Ticker core={core} />} />
       <main>
         <Hero core={core} />
         <DiscoverySection core={core} />
@@ -59,6 +67,8 @@ export default function App() {
       <Footer />
       <ChatDock scenarioText={scenarioText} />
       <WelcomeCard />
+      <BootSequence onDone={afterBoot} />
+      <ScanlineOverlay />
       <TourOverlay core={core} />
     </>
   )

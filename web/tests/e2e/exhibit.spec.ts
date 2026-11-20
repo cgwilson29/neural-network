@@ -20,7 +20,7 @@ test.describe('exhibit', () => {
     await expect(page).toHaveTitle('Queue Cartography')
     const readout = page.locator('.readout .figure .value')
     await expect(readout).toHaveText(String(Math.round(at(9, 0, 2, 12))))
-    await expect(page.locator('.chip.model')).toContainText('Network running in browser', { timeout: 30_000 })
+    await expect(page.locator('.chip.model')).toContainText('NET:ONLINE', { timeout: 30_000 })
     await page.getByRole('group', { name: 'Staff on shift' }).getByRole('button', { name: '3' }).click()
     await expect(readout).toHaveText(String(Math.round(at(9, 0, 3, 12))))
     await page.getByRole('group', { name: 'Day' }).getByRole('button', { name: 'Fri' }).click()
@@ -157,5 +157,56 @@ test.describe('layout', () => {
       expect(await page.evaluate(() => document.querySelector('.topbar')!.scrollWidth)).toBeLessThanOrEqual(viewport.width)
       await ctx.close()
     }
+  })
+})
+
+test.describe('cyberpunk effects + soundtrack', () => {
+  test.beforeEach(async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem('qc.tour.v1', 'done')
+      // count AudioContext creations (the generative soundtrack makes exactly one, after a gesture)
+      const w = window as unknown as { __audioCtx: number; AudioContext: typeof AudioContext }
+      w.__audioCtx = 0
+      const Real = w.AudioContext
+      if (Real) w.AudioContext = class extends Real { constructor(...a: ConstructorParameters<typeof AudioContext>) { super(...a); w.__audioCtx++ } }
+    })
+  })
+
+  test('effects are on by default; Calm mode turns them off and is remembered', async ({ page, browserName }) => {
+    test.skip(browserName !== 'firefox', 'one browser is enough')
+    await page.goto('./')
+    await expect(page.locator('html')).toHaveClass(/fx-active/)
+    await expect(page.locator('canvas.fx-rain')).toHaveCount(1)
+    await page.getByRole('button', { name: /Visual effects: on/ }).click()
+    await expect(page.locator('html')).not.toHaveClass(/fx-active/)
+    await expect(page.locator('canvas.fx-rain')).toHaveCount(0)
+    await page.reload()
+    await expect(page.getByRole('button', { name: /Visual effects: calm/ })).toBeVisible()
+    await expect(page.locator('html')).not.toHaveClass(/fx-active/)
+  })
+
+  test('reduced motion disables the effects', async ({ browser, browserName }) => {
+    test.skip(browserName !== 'firefox', 'one browser is enough')
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+    const page = await ctx.newPage()
+    await page.addInitScript(() => localStorage.setItem('qc.tour.v1', 'done'))
+    await page.goto('./')
+    await expect(page.locator('.topbar')).toBeVisible()
+    await expect(page.locator('html')).not.toHaveClass(/fx-active/)
+    await expect(page.locator('canvas.fx-rain')).toHaveCount(0)
+    await ctx.close()
+  })
+
+  test('soundtrack is on by default but makes no sound before the first gesture; the off switch is remembered', async ({ page, browserName }) => {
+    test.skip(browserName !== 'firefox', 'one browser is enough')
+    await page.goto('./')
+    await expect(page.getByRole('button', { name: 'Soundtrack on. Turn it off' })).toBeVisible()
+    await page.waitForTimeout(800)
+    expect(await page.evaluate(() => (window as unknown as { __audioCtx: number }).__audioCtx)).toBe(0)
+    await page.getByRole('group', { name: 'Day' }).getByRole('button', { name: 'Tue' }).click()
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __audioCtx: number }).__audioCtx)).toBe(1)
+    await page.getByRole('button', { name: 'Soundtrack on. Turn it off' }).click()
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Soundtrack off. Turn it on' })).toBeVisible()
   })
 })

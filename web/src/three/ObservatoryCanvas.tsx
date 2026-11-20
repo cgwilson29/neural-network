@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useThree } from '@react-three/fiber'
 import { OrbitControls, Stars } from '@react-three/drei'
-import { Bloom, EffectComposer } from '@react-three/postprocessing'
+import { Bloom, ChromaticAberration, EffectComposer, Glitch, Noise, Scanline, Vignette } from '@react-three/postprocessing'
+import { BlendFunction, GlitchMode } from 'postprocessing'
 import * as THREE from 'three'
 import { WaitSurface } from './WaitSurface'
+import { HoloFloor, ScanSweep, Skyline } from './CyberScene'
 import { ScenarioBeacon } from './ScenarioBeacon'
 import { TestPointCloud } from './TestPointCloud'
 import { AXIS_LABELS, AxisFrame } from './AxisFrame'
@@ -26,11 +28,13 @@ export interface LandscapeProps {
   onSelectVisit: (v: TestVisit) => void
   reducedMotion: boolean
   lowPower: boolean
+  /** Cyberpunk motion (glitch, sweeps, flicker) — off in Calm mode / reduced motion. */
+  fxActive: boolean
 }
 
-const CYAN_GLOW: [number, number, number] = [0.5, 2.6, 3.2]
+const CYAN_GLOW: [number, number, number] = [0.2, 2.8, 3.4]
 const GHOST_GLOW: [number, number, number] = [0.6, 1.3, 1.6]
-const AMBER_GLOW: [number, number, number] = [3.0, 1.4, 0.35]
+const AMBER_GLOW: [number, number, number] = [2.6, 3.0, 0.4] // acid yellow
 
 /**
  * Keeps the landscape framed on any screen:
@@ -91,13 +95,16 @@ export function ObservatoryCanvas(p: LandscapeProps) {
         <AnchorContext.Provider value={registry}>
           <ResponsiveCamera panelRight={430} />
           <LabelProjector layer={labelLayer} />
-          <color attach="background" args={['#060a13']} />
-          <fog attach="fog" args={['#060a13', 18, 38]} />
+          <color attach="background" args={['#04050a']} />
+          <fog attach="fog" args={['#04050a', 16, 34]} />
           <ambientLight intensity={0.55} />
           <directionalLight position={[6, 9, 5]} intensity={1.15} />
           <directionalLight position={[-6, 4, -6]} intensity={0.35} color="#7aa7ff" />
           <Stars radius={70} depth={30} count={1800} factor={3} saturation={0} fade speed={animate ? 0.4 : 0} />
           <group position={[0, -1.3, 0]}>
+            <HoloFloor animate={animate && p.fxActive} />
+            <Skyline animate={animate && p.fxActive} />
+            <ScanSweep animate={animate && p.fxActive && !p.lowPower} />
             <AxisFrame />
             <WaitSurface values={dense} reducedMotion={p.reducedMotion} />
             <TestPointCloud
@@ -162,9 +169,20 @@ export function ObservatoryCanvas(p: LandscapeProps) {
               idleTimer.current = window.setTimeout(() => setIdle(true), 9000)
             }}
           />
-          <EffectComposer multisampling={p.lowPower ? 0 : 4}>
-            <Bloom mipmapBlur luminanceThreshold={0.85} luminanceSmoothing={0.2} intensity={0.85} radius={0.7} />
-          </EffectComposer>
+          {p.fxActive && !p.lowPower ? (
+            <EffectComposer multisampling={4}>
+              <Bloom mipmapBlur luminanceThreshold={0.8} luminanceSmoothing={0.2} intensity={1.15} radius={0.75} />
+              <ChromaticAberration offset={[0.0009, 0.0006]} radialModulation modulationOffset={0.35} />
+              <Scanline blendFunction={BlendFunction.OVERLAY} density={1.4} opacity={0.12} />
+              <Noise blendFunction={BlendFunction.SOFT_LIGHT} opacity={0.18} />
+              <Glitch mode={GlitchMode.SPORADIC} delay={[6, 13]} duration={[0.12, 0.3]} strength={[0.04, 0.12]} ratio={0.9} />
+              <Vignette eskil={false} offset={0.25} darkness={0.75} />
+            </EffectComposer>
+          ) : (
+            <EffectComposer multisampling={p.lowPower ? 0 : 4}>
+              <Bloom mipmapBlur luminanceThreshold={0.85} luminanceSmoothing={0.2} intensity={0.9} radius={0.7} />
+            </EffectComposer>
+          )}
         </AnchorContext.Provider>
       </Canvas>
 

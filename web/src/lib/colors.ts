@@ -40,11 +40,11 @@ export function heatGradientCss(steps = 12): string {
   return `linear-gradient(90deg, ${stops.join(', ')})`
 }
 
-/** Validated series pair on the dark panel surface (dataviz validator: all checks pass). */
+/** Validated series pair on the #0a0d16 panel surface (dataviz validator: all checks pass, dark mode). */
 export const SERIES = {
-  current: '#1fa6c0', // cyan — the visitor's scenario / the neural network
-  pinned: '#cf7616', // amber — the pinned comparison scenario / the comparison model
+  current: '#009fb2', // neon cyan, data step — the visitor's scenario / the neural network
+  pinned: '#8d9c00', // acid yellow, data step — the pinned scenario / the comparison model
 }
 
 /** Diverging pair for signed quantities (weights, residuals): cool ↔ warm with a gray midpoint. */
-export const DIVERGING = { negative: '#3987e5', neutral: '#383d4a', positive: '#e0803a' }
+export const DIVERGING = { negative: '#00b8d4', neutral: '#383d4a', positive: '#c8d400' }

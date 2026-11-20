@@ -246,8 +246,8 @@ export function NetworkXRay({ core }: { core: CorePredictions }) {
         <p className="sub">
           Your scenario switches on one hour input and one weekday input; staff and queue enter as numbers. Brighter
           neurons are firing harder; dark ones are silent (ReLU outputs zero). Lines show each active connection’s pull:{' '}
-          <span style={{ color: DIVERGING.positive }}>warm = positive</span>,{' '}
-          <span style={{ color: '#7fb0f0' }}>cool = negative</span>.
+          <span style={{ color: DIVERGING.positive }}>yellow = positive</span>,{' '}
+          <span style={{ color: DIVERGING.negative }}>cyan = negative</span>.
         </p>
         <div aria-live="polite">{detail}</div>
         <p className="foot">

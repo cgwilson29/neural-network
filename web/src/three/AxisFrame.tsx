@@ -69,10 +69,10 @@ export function AxisFrame() {
   return (
     <group>
       <lineSegments geometry={floor}>
-        <lineBasicMaterial color="#2a3a57" transparent opacity={0.7} />
+        <lineBasicMaterial color="#0e6b7a" transparent opacity={0.8} />
       </lineSegments>
       <lineSegments geometry={axes}>
-        <lineBasicMaterial color="#3a4c6e" transparent opacity={0.6} />
+        <lineBasicMaterial color="#1b8fa0" transparent opacity={0.6} />
       </lineSegments>
       {AXIS_LABELS.map((l) => (
         <Anchor key={l.id} id={l.id} position={l.position} />

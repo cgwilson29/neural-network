@@ -166,7 +166,7 @@ export function WaitSurface({ values, reducedMotion }: Props) {
         />
       </mesh>
       <lineSegments geometry={staffLines}>
-        <lineBasicMaterial color="#e8f6ff" transparent opacity={0.4} />
+        <lineBasicMaterial color="#00f0ff" transparent opacity={0.45} />
       </lineSegments>
       <group>
         {contours.map(({ level, pts, major }) =>
@@ -175,7 +175,7 @@ export function WaitSurface({ values, reducedMotion }: Props) {
               key={level}
               points={pts}
               segments
-              color={major ? new THREE.Color(0.45, 2.1, 2.6) : new THREE.Color(0.3, 1.1, 1.4)}
+              color={major ? new THREE.Color(2.2, 2.6, 0.35) : new THREE.Color(0.1, 1.6, 1.9)}
               lineWidth={major ? 1.8 : 1}
               toneMapped={false}
               transparent

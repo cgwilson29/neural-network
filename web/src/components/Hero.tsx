@@ -1,4 +1,6 @@
-import { lazy, Suspense, useMemo } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef } from 'react'
+import { glitchOnce } from '../fx/Effects'
+import { useFxActive } from '../fx/useFx'
 import { DAYS, formatHour, HOURS, QUEUE_MAX, QUEUE_MIN, STAFF_MAX, STAFF_MIN } from '../lib/domain'
 import { metrics, testVisits, typicalRange, type TestVisit } from '../lib/artifacts'
 import { heatGradientCss } from '../lib/colors'
@@ -29,6 +31,7 @@ export function Hero({ core }: { core: CorePredictions }) {
   const chatGenerating = useExhibit((s) => s.chatGenerating)
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
   const coarsePointer = useMediaQuery('(pointer: coarse)')
+  const fxActive = useFxActive()
 
   const visits = useMemo(() => {
     const keep = (v: TestVisit) =>
@@ -42,6 +45,17 @@ export function Hero({ core }: { core: CorePredictions }) {
             : false)
     return testVisits.filter(keep)
   }, [pointFilter, scenario.hour, scenario.day, focusId])
+
+  const valueRef = useRef<HTMLSpanElement>(null)
+  const shown = Math.round(scenarioWait)
+  const first = useRef(true)
+  useEffect(() => {
+    if (first.current) {
+      first.current = false
+      return
+    }
+    if (valueRef.current) glitchOnce(valueRef.current, 320)
+  }, [shown])
 
   const [lo, hi] = typicalRange(scenarioWait)
   const saving = plusOneWait === null ? null : scenarioWait - plusOneWait
@@ -67,11 +81,14 @@ export function Hero({ core }: { core: CorePredictions }) {
           onSelectVisit={selectVisit}
           reducedMotion={reducedMotion}
           lowPower={chatGenerating || coarsePointer}
+          fxActive={fxActive}
         />
       </Suspense>
 
       <div className="hero-panel">
-        <div className="eyebrow">Clinic wait-time simulator · synthetic data</div>
+        <div className="eyebrow">
+          <span className="hud-tag">SYS//SIM_01</span> Clinic wait-time simulator · synthetic data
+        </div>
         <h1 id="hero-title">How long is the wait?</h1>
         <p className="lede">
           A small neural network learned how staffing, queue length and time of day shape clinic waits. Set up a
@@ -83,7 +100,9 @@ export function Hero({ core }: { core: CorePredictions }) {
             Predicted wait · {DAYS[scenario.day]} {formatHour(scenario.hour)}
           </div>
           <div className="figure">
-            <span className="value">{Math.round(scenarioWait)}</span>
+            <span className="value" ref={valueRef}>
+              {shown}
+            </span>
             <span className="unit">min</span>
           </div>
           <div className="range">

@@ -77,7 +77,7 @@ export function TestPointCloud({ visits, focusId, shown, onHover, onSelect }: Pr
         }}
       >
         <sphereGeometry args={[0.045, 12, 12]} />
-        <meshBasicMaterial color={new THREE.Color(1.6, 1.7, 1.9)} toneMapped={false} />
+        <meshBasicMaterial color={new THREE.Color(1.3, 2.2, 2.4)} toneMapped={false} />
       </instancedMesh>
       <lineSegments geometry={stems}>
         <lineBasicMaterial color="#9fb3d1" transparent opacity={0.55} />

@@ -67,6 +67,8 @@ site.
 | **How good is it?** | Model comparison with confidence intervals, predicted-vs-actual scatter (click a visit to load it), residual strips, training curve, the biggest miss. |
 | **Network X-ray** | Live neuron activations for your scenario, read from the ONNX model's hidden-layer outputs. |
 | **Guide + guide bot** | The guide is filled from `metrics.json`, so its numbers always match the site. The bot answers from the 2–3 most relevant guide passages, says "The guide doesn't cover that." when they don't answer a question, and runs entirely on the visitor's device after they click **Enable chat**. |
+| **Cyberpunk skin** | Neon cyan + acid-yellow HUD panels, a neon city skyline and holographic grid around the map, a scan sweep, bloom/chromatic aberration/scanline post-processing, data rain built from the real results, a live ticker, a first-visit boot sequence and occasional glitches. **Calm mode** (◈ FX in the top bar) and `prefers-reduced-motion` turn all motion off. Chart colors were re-validated for contrast and color-blind separation; the map's heat colors are unchanged because they encode data. |
+| **Soundtrack** | “Neon Cartography”, an original synthwave loop composed in code (`web/src/fx/synth.ts`) and synthesized live with the Web Audio API: no recordings, no third-party samples, nothing to download. On by default; browsers only allow sound after a click/tap/key, so it starts on the first interaction. ♫ in the top bar toggles it and is remembered; it gets quieter while the guide bot is open and pauses in background tabs. |
 | **Onboarding tour** | A first-visit welcome card offers a 60-second, 10-step tour; the "Tour" button restarts it. Several steps are learn-by-doing (add a staff member, lengthen the queue, pin a scenario) and advance when the visitor acts. It is keyboard-accessible, respects reduced motion, and becomes a bottom sheet on phones. |
 
 ![Onboarding tour (a learn-by-doing step) and the guide bot answering from guide search](docs/screenshot-tour-chat.png)
@@ -136,4 +138,4 @@ the CPU model (not WebLLM) or guide search.
 ## Credits
 
 Data and assignment: CAI5735 course site. Built with PyTorch, ONNX / ONNX Runtime Web, React, three.js, React
-Three Fiber + drei, d3, Floating UI, WebLLM (MLC) and wllama (llama.cpp) running Qwen3.
+Three Fiber + drei + postprocessing, d3, Floating UI, WebLLM (MLC) and wllama (llama.cpp) running Qwen3. Fonts: Chakra Petch and JetBrains Mono (SIL Open Font License, self-hosted via Fontsource).
