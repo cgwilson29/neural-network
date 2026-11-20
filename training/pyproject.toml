@@ -1,0 +1,28 @@
+[project]
+name = "wait-model"
+version = "0.1.0"
+description = "Train and export the Queue Cartography clinic wait-time network"
+requires-python = ">=3.12"
+dependencies = [
+    "ipykernel>=7.4.0",
+    "jupyter>=1.1.1",
+    "matplotlib>=3.11.2",
+    "nbconvert>=7.17.2",
+    "numpy>=2.5.5",
+    "onnx>=1.23.2",
+    "onnxruntime>=1.32.0",
+    "onnxscript>=0.7.2",
+    "pandas>=3.1.1",
+    "pytest>=9.2.0",
+    "scikit-learn>=1.9.1",
+    "torch>=2.15.0",
+]
+
+# On Linux, use CPU-only PyTorch wheels (no multi-GB CUDA download). macOS wheels come from PyPI.
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
