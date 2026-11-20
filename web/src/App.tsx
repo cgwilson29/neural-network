@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { TopBar } from './components/TopBar'
 import { Hero } from './components/Hero'
 import { DiscoverySection } from './components/DiscoverySection'
@@ -11,15 +11,24 @@ import { useCorePredictions } from './lib/useCorePredictions'
 import { warmUp } from './lib/predictor'
 import { describeScenario } from './lib/domain'
 import { liveScenarioSummary } from './chat/prompt'
+import { useExhibit } from './state/store'
+import { TourOverlay } from './tour/TourOverlay'
+import { WelcomeCard } from './tour/WelcomeCard'
+import { useTour } from './tour/useTour'
 
 export default function App() {
   const core = useCorePredictions()
-  const [chatOpen, setChatOpen] = useState(false)
+  const setChatOpen = useExhibit((s) => s.setChatOpen)
 
   useEffect(() => {
     // Load ONNX Runtime after first paint; the precomputed table covers the meantime.
     const id = window.setTimeout(warmUp, 50)
-    return () => window.clearTimeout(id)
+    // Offer the tour to first-time visitors once the map has had a moment to appear.
+    const welcome = window.setTimeout(() => useTour.getState().showWelcomeIfNew(), 1200)
+    return () => {
+      window.clearTimeout(id)
+      window.clearTimeout(welcome)
+    }
   }, [])
 
   const scenarioText = liveScenarioSummary(describeScenario(core.scenario), core.scenarioWait, core.plusOneWait)
@@ -48,7 +57,9 @@ export default function App() {
         <GuideSection onOpenChat={() => setChatOpen(true)} />
       </main>
       <Footer />
-      <ChatDock open={chatOpen} onOpenChange={setChatOpen} scenarioText={scenarioText} />
+      <ChatDock scenarioText={scenarioText} />
+      <WelcomeCard />
+      <TourOverlay core={core} />
     </>
   )
 }

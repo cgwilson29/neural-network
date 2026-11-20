@@ -1,5 +1,6 @@
 import { SITE_LINKS } from '../lib/artifacts'
 import { useExhibit } from '../state/store'
+import { useTour } from '../tour/useTour'
 
 export function ContourMark({ size = 26 }: { size?: number }) {
   return (
@@ -21,6 +22,7 @@ export function ContourMark({ size = 26 }: { size?: number }) {
 
 export function TopBar() {
   const modelStatus = useExhibit((s) => s.modelStatus)
+  const startTour = useTour((s) => s.start)
   const statusText =
     modelStatus === 'ready' ? 'Network running in browser' : modelStatus === 'loading' ? 'Loading network…' : 'Precomputed mode'
   return (
@@ -37,6 +39,9 @@ export function TopBar() {
         <a href="#guide">Guide</a>
       </nav>
       <span className="spacer" />
+      <button className="chip tour-btn" onClick={startTour} aria-label="Start the guided tour">
+        <span aria-hidden="true">✦</span> Tour
+      </button>
       <span className="chip" title="All 2,000 visits in the dataset are simulated">
         Synthetic data
       </span>

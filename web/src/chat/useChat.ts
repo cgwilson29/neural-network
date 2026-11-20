@@ -1,128 +1,210 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { checkWebGPU, type GpuCheck } from './capabilities'
-import { CHAT_MODELS, defaultTier, pickModelId, type ChatTier } from './models'
-import { createEngine, deleteModel, describeError, isModelCached, streamReply, type Engine, type Progress } from './engineClient'
-import { buildMessages, buildSystemPrompt, isRefusal, stripThink, type ChatTurn } from './prompt'
-import { GUIDE_TEXT } from '../content/guide'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { probe, type Probe } from './probe'
+import { chooseTier, type TierChoice } from './tiers'
+import {
+  DEFAULT_CPU_MODEL,
+  DEFAULT_GPU_MODEL,
+  findModel,
+  OFFERED,
+  SMALL_GPU_MODEL,
+  webllmId,
+  type EngineKind,
+  type GpuModelSpec,
+  type CpuModelSpec,
+} from './models'
+import { buildRagMessages, cleanAnswer, isRefusal, type ChatTurn } from './prompt'
+import { formatPassages, selectPassages } from './retrieval'
+import { GUIDE_INDEX } from '../content/guide'
+import { createGuideSearch } from './engines/guideSearch'
+import { GENERATION, MAX_TOKENS, type ChatEngine, type Progress } from './engines/types'
+import { describeError } from './engines/errors'
 import { useExhibit } from '../state/store'
 
 /**
- * idle → checking → unsupported | gated → loading → ready ⇄ generating
- *                                         ↘ error (exhibit unaffected; recorded answers shown)
+ * probing → idle (search answers; a model can be enabled) → loading → checking (WebLLM only) → ready ⇄ generating
+ *                                                                    ↘ error (search still answers)
  */
-export type ChatPhase = 'idle' | 'checking' | 'unsupported' | 'gated' | 'loading' | 'ready' | 'generating' | 'error'
+export type ChatPhase = 'probing' | 'idle' | 'loading' | 'checking' | 'ready' | 'generating' | 'error'
 
-export interface ChatMessage extends ChatTurn {
+export interface ChatMessage {
   id: number
+  role: 'user' | 'assistant'
+  content: string
+  source?: EngineKind
+  modelLabel?: string
+  /** Guide section quoted by guide search. */
+  from?: string | null
   refusal?: boolean
 }
 
-export function useChat(scenarioText: string) {
-  const [phase, setPhase] = useState<ChatPhase>('idle')
-  const [gpu, setGpu] = useState<GpuCheck | null>(null)
-  const [tier, setTier] = useState<ChatTier>(defaultTier)
+export function defaultModelFor(kind: EngineKind, smallDevice = false): string {
+  if (kind === 'webllm') return smallDevice ? SMALL_GPU_MODEL : DEFAULT_GPU_MODEL
+  if (kind === 'wllama') return DEFAULT_CPU_MODEL
+  return 'guide'
+}
+
+async function isCached(key: string, f16: boolean): Promise<boolean> {
+  const spec = findModel(key)
+  if (!spec) return false
+  if (spec.engine === 'webllm') {
+    const id = webllmId(spec, f16)
+    return id ? (await import('./engines/webllm')).isWebllmCached(id) : false
+  }
+  return (await import('./engines/wllama')).isWllamaCached(spec)
+}
+
+export function useChat(liveScenario: string) {
+  const [phase, setPhase] = useState<ChatPhase>('probing')
+  const [probeResult, setProbe] = useState<Probe | null>(null)
+  const [choice, setChoice] = useState<TierChoice | null>(null)
+  const [engineKind, setEngineKind] = useState<EngineKind>('search')
+  const [modelKey, setModelKey] = useState<string>(DEFAULT_GPU_MODEL)
   const [progress, setProgress] = useState<Progress>({ fraction: 0, text: '' })
   const [error, setError] = useState<string | null>(null)
   const [messages, setMessages] = useState<ChatMessage[]>([])
-  const [cached, setCached] = useState<Partial<Record<ChatTier, boolean>>>({})
-  const [loadedModel, setLoadedModel] = useState<string | null>(null)
-  const engine = useRef<Engine | null>(null)
-  const scenarioRef = useRef(scenarioText)
+  const [cached, setCached] = useState<Record<string, boolean>>({})
+  const engine = useRef<ChatEngine | null>(null)
+  const started = useRef(false)
   const nextId = useRef(1)
+  const scenarioRef = useRef(liveScenario)
+  scenarioRef.current = liveScenario
   const setChatGenerating = useExhibit((s) => s.setChatGenerating)
-  scenarioRef.current = scenarioText
+  const search = useMemo(() => createGuideSearch(() => scenarioRef.current), [])
 
-  const check = useCallback(async () => {
-    if (phase !== 'idle') return
-    setPhase('checking')
-    const g = await checkWebGPU()
-    setGpu(g)
-    if (!g.supported) {
-      setPhase('unsupported')
-      return
-    }
-    setPhase('gated')
-    // Only peeks at the browser cache (imports the library, downloads no model files).
-    const entries = await Promise.all(
-      (Object.keys(CHAT_MODELS) as ChatTier[]).map(async (t) => [t, await isModelCached(pickModelId(t, g.f16))] as const),
-    )
-    setCached(Object.fromEntries(entries))
-  }, [phase])
+  const refreshCached = useCallback(async (p: Probe, kinds: EngineKind[]) => {
+    const keys = kinds.flatMap((k) => (k === 'webllm' || k === 'wllama' ? OFFERED[k] : []))
+    const entries = await Promise.all(keys.map(async (k) => [k, await isCached(k, p.webgpu.f16)] as const))
+    setCached((c) => ({ ...c, ...Object.fromEntries(entries) }))
+  }, [])
+
+  /** Probe once, when the chat panel first opens. Downloads nothing. */
+  const start = useCallback(async () => {
+    if (started.current) return
+    started.current = true
+    const p = await probe()
+    const c = chooseTier(p)
+    setProbe(p)
+    setChoice(c)
+    setEngineKind(c.tier)
+    setModelKey(defaultModelFor(c.tier, c.smallDevice))
+    setPhase('idle')
+    refreshCached(p, c.available).catch(() => undefined)
+  }, [refreshCached])
+
+  const selectEngine = useCallback(
+    (kind: EngineKind) => {
+      setEngineKind(kind)
+      setModelKey(defaultModelFor(kind, choice?.smallDevice))
+      setError(null)
+      if (phase === 'error') setPhase('idle')
+    },
+    [choice, phase],
+  )
 
   const enable = useCallback(async () => {
-    if (!gpu?.supported) return
-    const modelId = pickModelId(tier, gpu.f16)
+    if (!probeResult || engineKind === 'search') return
+    const spec = findModel(modelKey)
+    if (!spec) return
     setError(null)
-    setProgress({ fraction: 0, text: 'Fetching the model configuration…' })
+    setProgress({ fraction: 0, text: 'Starting…' })
     setPhase('loading')
     try {
-      engine.current = await createEngine(modelId, setProgress)
-      setLoadedModel(modelId)
-      setCached((c) => ({ ...c, [tier]: true }))
+      if (engine.current) await engine.current.unload().catch(() => undefined)
+      engine.current = null
+      if (spec.engine === 'webllm') {
+        const { loadWebllm } = await import('./engines/webllm')
+        const e = await loadWebllm(spec as GpuModelSpec, probeResult.webgpu.f16, setProgress)
+        engine.current = e
+        setPhase('checking')
+        const { sanityCheck } = await import('./engines/sanity')
+        await sanityCheck(e)
+      } else {
+        const { loadWllama } = await import('./engines/wllama')
+        engine.current = await loadWllama(spec as CpuModelSpec, setProgress)
+      }
+      // Ask to keep the download. Chrome/Safari decide silently; Firefox would show a prompt, so skip it there.
+      if (!/firefox/i.test(navigator.userAgent)) navigator.storage?.persist?.().catch(() => undefined)
+      setCached((c) => ({ ...c, [modelKey]: true }))
       setPhase('ready')
     } catch (err) {
       console.error(err)
+      await engine.current?.unload().catch(() => undefined)
+      engine.current = null
       setError(describeError(err))
       setPhase('error')
     }
-  }, [gpu, tier])
+  }, [engineKind, modelKey, probeResult])
 
   const ask = useCallback(
     async (question: string) => {
       const q = question.trim()
-      const e = engine.current
-      if (!q || !e || phase !== 'ready') return
-      const history: ChatTurn[] = messages.map(({ role, content }) => ({ role, content }))
+      if (!q || phase === 'generating') return
       const userMsg: ChatMessage = { id: nextId.current++, role: 'user', content: q }
       const botId = nextId.current++
-      setMessages((m) => [...m, userMsg, { id: botId, role: 'assistant', content: '' }])
+      const e = engine.current
+
+      if (!e || phase !== 'ready') {
+        const a = search.answer(q)
+        setMessages((m) => [
+          ...m,
+          userMsg,
+          { id: botId, role: 'assistant', content: a.text, source: 'search', from: a.from, refusal: isRefusal(a.text) },
+        ])
+        return
+      }
+
+      // One earlier model exchange of context, as plain question/answer.
+      const history: ChatTurn[] = []
+      for (let i = messages.length - 1; i > 0; i--) {
+        const a = messages[i]
+        const u = messages[i - 1]
+        if (a.role === 'assistant' && u.role === 'user' && a.source === e.info.kind) {
+          history.push({ role: 'user', content: u.content }, { role: 'assistant', content: a.content })
+          break
+        }
+      }
+      const passages = formatPassages(selectPassages(GUIDE_INDEX, q))
+      setMessages((m) => [...m, userMsg, { id: botId, role: 'assistant', content: '', source: e.info.kind, modelLabel: e.info.label }])
       setPhase('generating')
       setChatGenerating(true)
-      const system = buildSystemPrompt(GUIDE_TEXT)
       try {
-        const full = await streamReply(e, {
-          messages: buildMessages(system, history, q, scenarioRef.current),
+        const { text } = await e.generate({
+          messages: buildRagMessages(q, passages, scenarioRef.current, history),
+          maxTokens: MAX_TOKENS[e.info.kind],
+          ...GENERATION,
           onDelta: (t) => {
-            const shown = stripThink(t)
+            const shown = cleanAnswer(t)
             setMessages((m) => m.map((x) => (x.id === botId ? { ...x, content: shown } : x)))
           },
         })
-        const final = stripThink(full).trim() || '(no answer)'
+        const final = cleanAnswer(text).trim() || '(no answer)'
         setMessages((m) => m.map((x) => (x.id === botId ? { ...x, content: final, refusal: isRefusal(final) } : x)))
-        setPhase('ready')
       } catch (err) {
         setMessages((m) => m.map((x) => (x.id === botId ? { ...x, content: `⚠ ${describeError(err)}` } : x)))
-        setPhase('ready')
       } finally {
+        setPhase('ready')
         setChatGenerating(false)
       }
     },
-    [messages, phase, setChatGenerating],
+    [messages, phase, search, setChatGenerating],
   )
 
-  const stop = useCallback(() => {
-    engine.current?.interruptGenerate()
-  }, [])
-
-  const clearConversation = useCallback(() => {
-    setMessages([])
-    engine.current?.resetChat().catch(() => undefined)
-  }, [])
+  const stop = useCallback(() => engine.current?.interrupt(), [])
+  const clearConversation = useCallback(() => setMessages([]), [])
 
   const forgetModel = useCallback(async () => {
-    const id = loadedModel ?? (gpu ? pickModelId(tier, gpu.f16) : null)
-    try {
-      await engine.current?.unload()
-    } catch {
-      /* ignore */
-    }
+    const spec = findModel(modelKey)
+    await engine.current?.unload().catch(() => undefined)
     engine.current = null
-    setLoadedModel(null)
-    setMessages([])
-    if (id) await deleteModel(id).catch(() => undefined)
-    setCached((c) => ({ ...c, [tier]: false }))
-    setPhase(gpu?.supported ? 'gated' : 'unsupported')
-  }, [gpu, loadedModel, tier])
+    if (spec?.engine === 'webllm' && probeResult) {
+      const id = webllmId(spec, probeResult.webgpu.f16)
+      if (id) await (await import('./engines/webllm')).deleteWebllmModel(id).catch(() => undefined)
+    } else if (spec?.engine === 'wllama') {
+      await (await import('./engines/wllama')).deleteWllamaModel(spec).catch(() => undefined)
+    }
+    setCached((c) => ({ ...c, [modelKey]: false }))
+    setPhase('idle')
+  }, [modelKey, probeResult])
 
   useEffect(
     () => () => {
@@ -131,5 +213,28 @@ export function useChat(scenarioText: string) {
     [],
   )
 
-  return { phase, gpu, tier, setTier, progress, error, messages, cached, loadedModel, check, enable, ask, stop, clearConversation, forgetModel, setPhase }
+  const activeInfo = phase === 'ready' || phase === 'generating' ? (engine.current?.info ?? null) : null
+  const modelChoices = engineKind === 'search' ? [] : OFFERED[engineKind].map((k) => findModel(k)!).filter(Boolean)
+
+  return {
+    phase,
+    probe: probeResult,
+    choice,
+    engineKind,
+    modelKey,
+    modelChoices,
+    progress,
+    error,
+    messages,
+    cached,
+    activeInfo,
+    start,
+    selectEngine,
+    setModelKey,
+    enable,
+    ask,
+    stop,
+    clearConversation,
+    forgetModel,
+  }
 }

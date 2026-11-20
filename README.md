@@ -66,17 +66,28 @@ site.
 | **Discovery** | Staffing curve, minutes saved per added staff member, pinned A-vs-B comparison, hour × weekday heatmap. |
 | **How good is it?** | Model comparison with confidence intervals, predicted-vs-actual scatter (click a visit to load it), residual strips, training curve, the biggest miss. |
 | **Network X-ray** | Live neuron activations for your scenario, read from the ONNX model's hidden-layer outputs. |
-| **Guide + guide bot** | The guide is filled from `metrics.json`, so its numbers always match. The chatbot (WebLLM, Qwen3) runs on-device after the visitor clicks **Enable chat**, shows loading progress, and says "The guide doesn't cover that." when the guide has no answer. If WebGPU is unavailable, the rest of the exhibit is unaffected and recorded answers are shown. |
+| **Guide + guide bot** | The guide is filled from `metrics.json`, so its numbers always match the site. The bot answers from the 2–3 most relevant guide passages, says "The guide doesn't cover that." when they don't answer a question, and runs entirely on the visitor's device after they click **Enable chat**. |
+| **Onboarding tour** | A first-visit welcome card offers a 60-second, 10-step tour; the "Tour" button restarts it. Several steps are learn-by-doing (add a staff member, lengthen the queue, pin a scenario) and advance when the visitor acts. It is keyboard-accessible, respects reduced motion, and becomes a bottom sheet on phones. |
 
-**Chat models:** Standard = Qwen3-1.7B (~1 GB) or Lite = Qwen3-0.6B (~350 MB). The q4f16 build is used when the GPU
-supports `shader-f16`, otherwise q4f32.
+### The guide bot in every browser
 
-**Browser support for chat:** every WebLLM model library contains paged-attention WebGPU shaders that bind
-**10 storage buffers**. We counted them in the compiled WGSL of the Qwen3, Qwen2.5 and Llama 3.2 libraries.
-Firefox 160 currently allows 9. An early workaround that reported 10 to WebLLM made those shaders fail silently,
-and the model produced nonsense on long prompts (see the test log). So the exhibit now checks the limit and, in
-Firefox, says chat is unavailable and shows the recorded test answers instead. Chat runs in **Chrome, Edge and
-Safari 26+**. Everything else in the exhibit works in every modern browser.
+| Tier | Engine | Who gets it | Model (chosen by bake-off) |
+|---|---|---|---|
+| 1 | **WebLLM** on WebGPU | Chrome/Edge 113+, Safari 26+ (macOS, iOS, iPadOS), Android Chrome, Firefox on Windows (expected) | Qwen3-1.7B (~1 GB; q4f16, or q4f32 without shader-f16) |
+| 2 | **CPU mode**: wllama (llama.cpp WebAssembly), **not WebLLM** | Firefox on macOS (WebGPU allows 9 storage buffers per shader; WebLLM needs 10), Firefox on Linux/Android, Chromium without a usable GPU | Qwen3-0.6B GGUF (397 MB, ~12 s per answer on an M5 Max) |
+| 3 | **Guide search**, no AI | Everyone, instantly, including while a model downloads; the only option where neither model can run | — |
+
+- **Choosing the tier:** a capability probe (`web/src/chat/probe.ts`) and a pure `chooseTier` function pick the tier.
+  The panel explains the choice under "Why this mode?" and always offers the lower tiers.
+- **Never fake GPU limits:** every WebLLM model library contains paged-attention shaders that bind 10 storage
+  buffers. We counted them in the compiled WGSL. An early workaround that reported 10 to WebLLM made those shaders fail
+  silently, and the model produced nonsense (test log, round 0).
+- **Sanity check:** a short check after loading now catches that failure mode.
+- **Bake-off:** each default is the smallest model whose answers were all supported. Twelve questions (the 3 required,
+  3 extra checks and 6 rewordings) were each asked with 3 seeds. No WebLLM model under 1 GB passed (test log,
+  round 5).
+- **Speed:** retrieval cut prompts from ~1,660 to ~620 tokens and answers from 2–4 s to ~0.8 s. A cached model loads
+  in about 3 s.
 
 ## Run it locally
 
@@ -94,8 +105,9 @@ npm run dev            # http://localhost:5173/neural-network/
 npm test               # unit + ONNX parity tests (vitest)
 npx playwright install firefox && npm run test:e2e   # end-to-end in Firefox
 
-# Chatbot evaluation harness (opens the real guide/prompt against the test questions; needs WebGPU)
-npx vite --config tools/chat-eval/vite.config.ts     # then open http://localhost:5198/
+# Chatbot evaluation harness (the site's real engines, retrieval and prompt against the test questions)
+npx vite --config tools/chat-eval/vite.config.ts     # then open http://localhost:5198/?engine=webllm&models=qwen3-1.7b
+node tools/chat-eval/score.ts ../docs/chatbot-eval/<run>.jsonl   # pre-screen the answers
 ```
 
 Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml): tests → build → GitHub Pages.
@@ -104,18 +116,22 @@ Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy
 
 - **pytest** (`training/tests`): split integrity, torch vs NumPy encoding, ONNX vs saved grid, artifact checks.
 - **vitest** (`web/tests`): ONNX parity in ONNX Runtime (300 test visits, all 5,250 grid inputs, hidden activations
-  to 1e-4), interpolation and contour math, guide/metrics consistency and context budget, prompt assembly,
-  model selection, WebGPU capability check (refuses the 9-buffer Firefox limit).
-- **Playwright** (`web/tests/e2e`, Firefox): the model loads in-browser and visitor inputs change predictions;
-  chat is gated and the exhibit stays usable without WebGPU; findings render.
+  to 1e-4), interpolation and contour math, guide/metrics consistency, retrieval recall on 17 questions and the prompt
+  budget, prompt assembly and answer clean-up, guide search, model catalog (every ID exists in WebLLM), tier routing
+  (`chooseTier`), and the tour's learn-by-doing checks and storage.
+- **Playwright** (`web/tests/e2e`, Firefox + Chromium): the model loads in-browser and visitor inputs change
+  predictions; findings render; Firefox without a GPU adapter → CPU mode, with guide search answering and **zero**
+  model downloads before Enable; Chromium (SwiftShader WebGPU) → WebLLM; a 9-buffer GPU → CPU mode with the reason
+  shown; the tour (welcome card → learn-by-doing step → Esc → remembered → restart; bottom sheet at 390 px).
 
 ## Limitations
 
 Synthetic data only; inputs limited to the trained ranges; no testing on any other dataset or real clinic;
 patterns, not causes; not medical or staffing advice. The small chatbot can still make mistakes, so its answers
-were checked against the site (see the test log).
+were checked against the site (see the test log). WebLLM itself cannot run in Firefox on macOS; that browser gets
+the CPU model (not WebLLM) or guide search.
 
 ## Credits
 
 Data and assignment: CAI5735 course site. Built with PyTorch, ONNX / ONNX Runtime Web, React, three.js, React
-Three Fiber + drei, d3, and WebLLM (MLC) running Qwen3.
+Three Fiber + drei, d3, Floating UI, WebLLM (MLC) and wllama (llama.cpp) running Qwen3.

@@ -25,7 +25,7 @@ export function EvaluationSection() {
         </p>
       </div>
 
-      <div className="tiles">
+      <div className="tiles" data-tour="tiles">
         <div className="tile emph">
           <div className="k">Neural network error</div>
           <div className="v num">

@@ -48,4 +48,4 @@ The largest test error was a {{missDay}} {{missHour}} visit with {{missStaff}} s
 This guide does not cover real clinics or hospitals, costs, staffing policy, medical questions, other datasets, or details of how the data was simulated beyond what is written here.
 
 ## About this chatbot
-The chatbot is a small language model (Qwen3) running entirely in the visitor's browser with WebLLM and WebGPU. It only knows this guide and the scenario currently set on the page, and it can make mistakes, so check its answers against the charts on the page.
+The chatbot runs entirely in the visitor's browser. Where the browser's WebGPU allows it, it is a small language model running with WebLLM. Otherwise it is a smaller model running on the computer's processor with llama.cpp (wllama), or, if neither can run, an instant search that shows matching guide text without AI. It only knows this guide and the settings currently on the page, and it can make mistakes, so check its answers against the charts on the page.

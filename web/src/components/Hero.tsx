@@ -54,7 +54,7 @@ export function Hero({ core }: { core: CorePredictions }) {
 
   return (
     <section className="hero" id="explore" aria-labelledby="hero-title">
-      <Suspense fallback={<div className="observatory-canvas" aria-hidden="true" />}>
+      <Suspense fallback={<div className="observatory-canvas" data-tour="map" aria-hidden="true" />}>
         <ObservatoryCanvas
           surface={surface}
           scenario={scenario}
@@ -78,7 +78,7 @@ export function Hero({ core }: { core: CorePredictions }) {
           clinic and it predicts the wait live, in your browser.
         </p>
 
-        <div className="readout" aria-live="polite">
+        <div className="readout" data-tour="readout" aria-live="polite">
           <div className="label">
             Predicted wait · {DAYS[scenario.day]} {formatHour(scenario.hour)}
           </div>
@@ -135,7 +135,7 @@ export function Hero({ core }: { core: CorePredictions }) {
               <span>5 pm</span>
             </div>
           </div>
-          <div className="control">
+          <div className="control" data-tour="staff">
             <div className="control-label" id="staff-label">
               Staff on shift <span className="val">{scenario.staff}</span>
             </div>
@@ -147,7 +147,7 @@ export function Hero({ core }: { core: CorePredictions }) {
               ))}
             </div>
           </div>
-          <div className="control">
+          <div className="control" data-tour="queue">
             <label htmlFor="queue">
               Patients in queue <span className="val">{scenario.queue}</span>
             </label>
@@ -170,11 +170,11 @@ export function Hero({ core }: { core: CorePredictions }) {
 
         <div className="btn-row">
           {pinned ? (
-            <button className="btn amber" onClick={clearPin}>
+            <button className="btn amber" data-tour="pin" onClick={clearPin}>
               <span className="glyph pinned" aria-hidden="true" /> Unpin comparison
             </button>
           ) : (
-            <button className="btn amber" onClick={pin} title="Keep this scenario on the map, then change the controls to compare">
+            <button className="btn amber" data-tour="pin" onClick={pin} title="Keep this scenario on the map, then change the controls to compare">
               <span className="glyph pinned" aria-hidden="true" /> Pin to compare
             </button>
           )}
@@ -189,7 +189,7 @@ export function Hero({ core }: { core: CorePredictions }) {
         </p>
       </div>
 
-      <aside className="hero-legend" aria-label="Map legend">
+      <aside className="hero-legend" data-tour="legend" aria-label="Map legend">
         <strong style={{ color: 'var(--text-primary)' }}>Predicted wait (minutes)</strong>
         <div className="heatbar" style={{ background: heatGradientCss() }} aria-hidden="true" />
         <div className="ticks" aria-hidden="true">

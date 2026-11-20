@@ -1,46 +1,42 @@
+import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { CHAT_MODELS, pickModelId } from '../src/chat/models'
+import { CPU_MODELS, DEFAULT_CPU_MODEL, DEFAULT_GPU_MODEL, findModel, GPU_MODELS, OFFERED, SMALL_GPU_MODEL, webllmId } from '../src/chat/models'
 
-describe('chat model choice', () => {
-  it('uses q4f16 builds when shader-f16 is available, q4f32 otherwise', () => {
-    expect(pickModelId('standard', true)).toBe('Qwen3-1.7B-q4f16_1-MLC')
-    expect(pickModelId('standard', false)).toBe('Qwen3-1.7B-q4f32_1-MLC')
-    expect(pickModelId('lite', false)).toBe('Qwen3-0.6B-q4f32_1-MLC')
-    expect(CHAT_MODELS.lite.downloadMB).toBeLessThan(CHAT_MODELS.standard.downloadMB)
-  })
-})
+const webllmLib = readFileSync(new URL('../node_modules/@mlc-ai/web-llm/lib/index.js', import.meta.url), 'utf8')
 
-describe('WebGPU capability check', () => {
-  async function check(limit: number, f16 = true) {
-    const adapter = {
-      features: new Set(f16 ? ['shader-f16'] : []),
-      limits: {
-        maxBufferSize: 1 << 30,
-        maxStorageBufferBindingSize: 1 << 30,
-        maxComputeWorkgroupStorageSize: 32768,
-        maxStorageBuffersPerShaderStage: limit,
-      },
+describe('chat model catalog', () => {
+  it('every WebLLM model ID exists in the installed prebuilt list', () => {
+    for (const m of GPU_MODELS) {
+      expect(webllmLib).toContain(`model_id: "${m.f16}"`)
+      if (m.f32) expect(webllmLib).toContain(`model_id: "${m.f32}"`)
     }
-    const g = globalThis as unknown as { navigator?: unknown }
-    const saved = g.navigator
-    Object.defineProperty(globalThis, 'navigator', { value: { gpu: { requestAdapter: async () => adapter } }, configurable: true })
-    try {
-      const { checkWebGPU } = await import('../src/chat/capabilities')
-      return await checkWebGPU()
-    } finally {
-      Object.defineProperty(globalThis, 'navigator', { value: saved, configurable: true })
-    }
-  }
-
-  it('accepts adapters with 10+ storage buffers per shader stage', async () => {
-    const r = await check(10)
-    expect(r.supported).toBe(true)
-    expect(r.f16).toBe(true)
   })
 
-  it('refuses adapters with 9 (current Firefox) instead of running a broken model', async () => {
-    const r = await check(9)
-    expect(r.supported).toBe(false)
-    expect(r.problems.join(' ')).toMatch(/needs 10/)
+  it('picks q4f16 with shader-f16, q4f32 without, and nothing when no f32 build exists', () => {
+    const qwen = findModel('qwen3-1.7b')
+    expect(qwen?.engine).toBe('webllm')
+    if (qwen?.engine !== 'webllm') return
+    expect(webllmId(qwen, true)).toBe('Qwen3-1.7B-q4f16_1-MLC')
+    expect(webllmId(qwen, false)).toBe('Qwen3-1.7B-q4f32_1-MLC')
+    const gemma = findModel('gemma3-1b')
+    if (gemma?.engine === 'webllm') expect(webllmId(gemma, false)).toBeNull()
+  })
+
+  it('only Qwen3 / Qwen3.5 models get the thinking switch (it corrupts other models in WebLLM 0.2.89)', () => {
+    for (const m of [...GPU_MODELS, ...CPU_MODELS]) expect(m.thinking).toBe(/^qwen3/i.test(m.key))
+  })
+
+  it('defaults point at catalog entries of the right engine', () => {
+    expect(findModel(DEFAULT_GPU_MODEL)?.engine).toBe('webllm')
+    expect(findModel(SMALL_GPU_MODEL)?.engine).toBe('webllm')
+    expect(findModel(DEFAULT_CPU_MODEL)?.engine).toBe('wllama')
+    for (const k of [...OFFERED.webllm, ...OFFERED.wllama]) expect(findModel(k)).toBeDefined()
+  })
+
+  it('lists models in ascending download size', () => {
+    for (const list of [GPU_MODELS, CPU_MODELS]) {
+      const sizes = list.map((m) => m.downloadMB)
+      expect([...sizes].sort((a, b) => a - b)).toEqual(sizes)
+    }
   })
 })

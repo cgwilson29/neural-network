@@ -30,7 +30,7 @@ export function DiscoverySection({ core }: { core: CorePredictions }) {
       </div>
 
       <div className="grid-2">
-        <div className="card">
+        <div className="card" data-tour="discovery-curve">
           <h3>Predicted wait as staff are added</h3>
           <p className="sub">
             Same hour, weekday and queue as your clinic; the line is labeled with minutes saved at each step. Click a

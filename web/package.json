@@ -13,10 +13,12 @@
     "typecheck": "tsc -b"
   },
   "dependencies": {
+    "@floating-ui/dom": "1.8.0",
     "@mlc-ai/web-llm": "0.2.89",
     "@react-three/drei": "^10.7.9",
     "@react-three/fiber": "^9.8.2",
     "@react-three/postprocessing": "^3.2.2",
+    "@wllama/wllama": "3.13.0",
     "d3-array": "^3.2.5",
     "d3-color": "^3.1.1",
     "d3-format": "^3.1.3",

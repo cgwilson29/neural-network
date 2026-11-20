@@ -1,0 +1,130 @@
+[
+ {
+  "q": "Where did your data come from?",
+  "expect": [
+   "qa-where-did-the-data-come-from"
+  ],
+  "kind": "core"
+ },
+ {
+  "q": "How did your model compare with the baseline?",
+  "expect": [
+   "qa-how-did-the-model-compare-with-the-baseline"
+  ],
+  "kind": "core"
+ },
+ {
+  "q": "How well did this model work on a dataset you never tested?",
+  "expect": [
+   "qa-how-well-does-the-model-work-on-other-data",
+   "limitations"
+  ],
+  "kind": "core"
+ },
+ {
+  "q": "Is this real patient data?",
+  "expect": [
+   "qa-is-this-real-patient-data"
+  ],
+  "kind": "core"
+ },
+ {
+  "q": "How many staff should my clinic hire?",
+  "expect": [
+   "qa-should-a-real-clinic-use-this-to-decide-staffing"
+  ],
+  "kind": "core"
+ },
+ {
+  "q": "What does the model predict for the clinic I have set up?",
+  "expect": [
+   "what-the-model-sees-and-predicts",
+   "what-this-site-is"
+  ],
+  "kind": "core",
+  "live": true
+ },
+ {
+  "q": "What dataset is this exhibit built on?",
+  "expect": [
+   "qa-where-did-the-data-come-from",
+   "where-the-data-came-from"
+  ],
+  "kind": "paraphrase"
+ },
+ {
+  "q": "Is the neural network better than just guessing the median?",
+  "expect": [
+   "qa-how-did-the-model-compare-with-the-baseline",
+   "results-on-the-test-set"
+  ],
+  "kind": "paraphrase"
+ },
+ {
+  "q": "Would this model work on a real hospital's data?",
+  "expect": [
+   "qa-how-well-does-the-model-work-on-other-data",
+   "limitations",
+   "qa-is-this-real-patient-data"
+  ],
+  "kind": "paraphrase"
+ },
+ {
+  "q": "Are these real patients?",
+  "expect": [
+   "qa-is-this-real-patient-data"
+  ],
+  "kind": "paraphrase"
+ },
+ {
+  "q": "Should we add more nurses at our clinic?",
+  "expect": [
+   "qa-should-a-real-clinic-use-this-to-decide-staffing"
+  ],
+  "kind": "paraphrase"
+ },
+ {
+  "q": "For my current settings, what wait does the model expect?",
+  "expect": [
+   "what-the-model-sees-and-predicts",
+   "what-this-site-is"
+  ],
+  "kind": "paraphrase",
+  "live": true
+ },
+ {
+  "q": "What was the biggest mistake the model made?",
+  "expect": [
+   "one-mistake-we-studied"
+  ],
+  "kind": "topic"
+ },
+ {
+  "q": "How was the model tested?",
+  "expect": [
+   "how-it-was-tested"
+  ],
+  "kind": "topic"
+ },
+ {
+  "q": "When is the clinic busiest?",
+  "expect": [
+   "what-visitors-can-discover"
+  ],
+  "kind": "topic"
+ },
+ {
+  "q": "How many layers does the network have?",
+  "expect": [
+   "what-the-model-sees-and-predicts"
+  ],
+  "kind": "topic"
+ },
+ {
+  "q": "What are the limitations?",
+  "expect": [
+   "limitations"
+  ],
+  "kind": "topic"
+ }
+]

@@ -13,12 +13,14 @@ interface ExhibitState {
   focusVisitId: number | null
   modelStatus: ModelStatus
   chatGenerating: boolean
+  chatOpen: boolean
   setScenario: (patch: Partial<Scenario>) => void
   pin: () => void
   clearPin: () => void
   setPointFilter: (f: PointFilter) => void
   focusVisit: (id: number | null) => void
   setChatGenerating: (b: boolean) => void
+  setChatOpen: (open: boolean) => void
 }
 
 export const useExhibit = create<ExhibitState>((set, get) => ({
@@ -28,12 +30,14 @@ export const useExhibit = create<ExhibitState>((set, get) => ({
   focusVisitId: null,
   modelStatus: getModelStatus(),
   chatGenerating: false,
+  chatOpen: false,
   setScenario: (patch) => set({ scenario: clampScenario({ ...get().scenario, ...patch }) }),
   pin: () => set({ pinned: get().scenario }),
   clearPin: () => set({ pinned: null }),
   setPointFilter: (pointFilter) => set({ pointFilter }),
   focusVisit: (focusVisitId) => set({ focusVisitId }),
   setChatGenerating: (chatGenerating) => set({ chatGenerating }),
+  setChatOpen: (chatOpen) => set({ chatOpen }),
 }))
 
 onModelStatus((modelStatus) => useExhibit.setState({ modelStatus }))

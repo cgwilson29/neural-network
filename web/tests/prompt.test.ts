@@ -26,6 +26,13 @@ describe('prompt assembly', () => {
 })
 
 describe('streamed text cleanup', () => {
+  it('drops an "A:" prefix copied from the examples', async () => {
+    const { cleanAnswer } = await import('../src/chat/prompt')
+    expect(cleanAnswer('A: No. All 2,000 visits are synthetic.')).toBe('No. All 2,000 visits are synthetic.')
+    expect(cleanAnswer('<think>\n\n</think>\n\nAnswer: Yes')).toBe('Yes')
+    expect(cleanAnswer("Yes, it's better. A: The error is 90% lower. A: The error…")).toBe("Yes, it's better.")
+  })
+
   it('removes Qwen3 think blocks, complete or still streaming', () => {
     expect(stripThink('<think>\n\n</think>\n\nHello')).toBe('Hello')
     expect(stripThink('<think>reasoning')).toBe('')

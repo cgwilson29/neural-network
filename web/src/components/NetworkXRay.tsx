@@ -175,7 +175,7 @@ export function NetworkXRay({ core }: { core: CorePredictions }) {
   )
 
   return (
-    <div className="xray-wrap">
+    <div className="xray-wrap" data-tour="xray">
       <div className="card" ref={ref} style={{ padding: 12 }}>
         {!ready ? (
           <div style={{ height: H, display: 'grid', placeItems: 'center', color: 'var(--text-muted)' }}>

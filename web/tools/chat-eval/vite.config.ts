@@ -8,6 +8,7 @@ const out = fileURLToPath(new URL('../../../docs/chatbot-eval/', import.meta.url
 export default defineConfig({
   root: fileURLToPath(new URL('.', import.meta.url)),
   worker: { format: 'es' },
+  optimizeDeps: { exclude: ['onnxruntime-web', '@wllama/wllama'] },
   server: { port: 5198, strictPort: true, fs: { allow: [fileURLToPath(new URL('../..', import.meta.url))] } },
   plugins: [
     {

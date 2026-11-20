@@ -119,3 +119,104 @@ as the default.
   found was traced to a cause and fixed or labeled.
 - Firefox can't run WebLLM correctly yet (shader limit). The exhibit detects this and shows the round-4 answers
   above as recorded answers.
+
+---
+
+# Version 2: a guide bot for every browser (2026-11-20)
+
+**Goal:** a faster-loading guide bot that every browser gets.
+- **Constraint:** WebLLM stays the main engine, but it can't run in Firefox on macOS (9 storage buffers per shader,
+  hard-coded in Firefox's WebGPU layer; every WebLLM model library needs 10) or in browsers without WebGPU.
+- **Design:**
+  1. WebLLM on the GPU wherever the browser allows it.
+  2. Otherwise a small CPU model run by wllama (llama.cpp, **not WebLLM**).
+  3. Otherwise an instant, non-AI **guide search**, which also answers while a model downloads.
+- **Retrieval:** each question now carries only the 2–3 most relevant guide passages, found with BM25 over 15
+  guide chunks. That replaces the whole guide in the prompt.
+
+**Harness:** `web/tools/chat-eval` now drives the site's own engines, retrieval and prompt.
+- **Questions:** the 6 core questions above, plus 6 reworded versions (to avoid tuning the prompt to the test),
+  each asked with 3 seeds at temperature 0.2. That gives 18 answers per model for the core questions and 18 for
+  the reworded ones.
+- **Scoring:** `tools/chat-eval/score.ts` pre-screens each answer:
+  - required facts are present;
+  - refusals start with "The guide doesn't cover that.";
+  - no advice;
+  - every number must appear in the passages it was given.
+  Final verdicts were made by reading the answers.
+- **Pass rule:** every core and reworded answer supported, in 3 of 3 seeds. The smallest download that passes
+  becomes the default.
+
+## Round 5: retrieval + model bake-off
+
+The prompt needed three fixes found during this round. They are listed below the table, and every model was re-run
+after them.
+
+| Engine · browser | Model | Download | Core | Reworded | Median answer | Median prompt | Verdict |
+|---|---|---|---|---|---|---|---|
+| WebLLM · Safari 27.2 | LFM2.5-350M | 204 MB | 8/18 | 6/18 | 0.1 s | 636 tok | ❌ refuses answerable questions |
+| WebLLM · Safari | SmolLM2-360M | 207 MB | 4/18 | 4/18 | 1.1 s | 662 tok | ❌ invents details ("2020-2021 class") |
+| WebLLM · Safari | Qwen2.5-0.5B | 290 MB | 10/18 | 10/18 | 0.5 s | 618 tok | ❌ |
+| WebLLM · Safari | Qwen3-0.6B | 352 MB | 9/18 | 9/18 | 0.7 s | 622 tok | ❌ copies the refusal example into most answers |
+| WebLLM · Safari | Qwen3.5-0.8B | 447 MB | 9/18 | 9/18 | 1.2 s | 640 tok | ❌ (also failed the post-load sanity check) |
+| WebLLM · Safari | Gemma 3 1B | 602 MB | 9/18 | 9/18 | 1.1 s | 630 tok | ❌ refuses data/baseline questions |
+| WebLLM · Safari | LFM2.5-1.2B | 663 MB | 9/18 | 9/18 | 0.5 s | 636 tok | ❌ |
+| WebLLM · Safari | Llama-3.2-1B | 705 MB | 14/18 | 13/18 | 0.5 s | 611 tok | ❌ refuses the baseline question; once gave 76 min for the visitor's setup |
+| **WebLLM · Safari** | **Qwen3-1.7B** | **984 MB** | **18/18** | **18/18** | **0.8 s** | 622 tok | ✅ **default (GPU)** |
+| wllama CPU · Firefox 160 | LFM2.5-350M | 229 MB | 9/18 | 12/18 | 10.7 s | 448 tok | ❌ |
+| wllama CPU · Firefox | SmolLM2-360M | 271 MB | 13/18 | 14/18 | 21.1 s | 257 tok* | ❌ |
+| **wllama CPU · Firefox** | **Qwen3-0.6B** | **397 MB** | **18/18** | **18/18** | **12.3 s** | 244 tok* | ✅ **default (CPU)** |
+| wllama CPU · Firefox | Qwen2.5-0.5B | 491 MB | 12/18 | 12/18 | 22.0 s | 240 tok* | ❌ |
+
+\* wllama reports only the tokens it had to process. The constant rules prefix is reused from the previous question
+(`cache_prompt`).
+
+**Prompt fixes made during round 5 (each followed by a full re-run):**
+1. **A lone advice example got copied.** With a single example ("The guide doesn't cover that… not staffing
+   advice"), small models copied it into answers about the data and the baseline. The prompt now has a balanced pair
+   (one answered question, one refusal) and says that most questions *are* answered by the passages.
+2. **Qwen3.5 thinks out loud.** It emitted `<think>` blocks despite expectations, so it now gets the same "answer
+   directly" switch as Qwen3. That switch is sent *only* to Qwen models, because WebLLM 0.2.89 corrupts other models'
+   output if it is sent to them.
+3. **The "Not covered" passage pulled models into refusing.** It now goes into the prompt only for advice questions
+   or weak matches. Also stripped: a leading "A:" and any example-style "A:/Q:" continuation the model writes after
+   its answer.
+
+**Same model, different runtime:** Qwen3-0.6B passes on the CPU (llama.cpp's Q4_K_M quantization and GGUF chat
+template) but not through WebLLM (q4f16, where it copies the refusal example). The CPU engine is not simply
+"WebLLM but slower".
+
+**Qwen3-1.7B final answers** (identical across seeds 1–3), all checked against the guide:
+
+| Question | Answer |
+|---|---|
+| Where did your data come from? | "It comes from the file clinic-wait-times.csv on the course website." |
+| How did your model compare with the baseline? | "The model's error was 90% lower than the baseline." *(supported; less detailed than round 4, which also gave 4.49 vs 46.14)* |
+| How well did this model work on a dataset you never tested? | "The guide has no results for any other dataset." |
+| Is this real patient data? | "No. All 2,000 visits are synthetic (made up)." |
+| How many staff should my clinic hire? | "The guide doesn't cover that. This exhibit is built on synthetic data and is not staffing advice." |
+| What does the model predict for the clinic I have set up? | "The model predicts 100 minutes for the current setup." |
+
+**What got faster** (Safari, M5 Max):
+- **Prompt:** ~1,660 tokens before → ~620 now.
+- **Answers:** 2–4 s each before → 0.8 s median now.
+- **Cached model load:** about 3 s.
+- **First answer of any kind:** instant everywhere, because guide search answers while the model downloads.
+
+The default GPU download is still the 984 MB Qwen3-1.7B, because nothing smaller passed. Smaller models would load
+faster but answer unreliably, which the assignment's "revise unsupported claims" step rules out.
+
+## Round 6: which engine each browser gets
+
+| Browser / OS | Probe facts | Tier chosen | Verified |
+|---|---|---|---|
+| Safari 27.2 · macOS 27.2 (M5 Max) | WebGPU ✓, 44 storage buffers, shader-f16 ✓ | WebLLM · Qwen3-1.7B q4f16 | ✅ loads, sanity check passes, 18/18 |
+| Firefox 160 · macOS 27.2 | WebGPU ✓, **9** storage buffers (WebLLM needs 10); SIMD/JSPI/Memory64 ✓ | CPU · Qwen3-0.6B (wllama) | ✅ 18/18, ~12 s per answer |
+| Headless Chromium (Playwright) | SwiftShader WebGPU, 10 buffers, no shader-f16 | WebLLM · q4f32 build | ✅ routing (Playwright test) |
+| Headless Chromium with 9 buffers stubbed | as Firefox-on-Mac | CPU mode, reason shown | ✅ routing (Playwright test) |
+| Headless Firefox (Playwright) | `navigator.gpu` but no adapter | CPU mode | ✅ routing; guide search answers with zero model downloads |
+| Firefox · Windows | hardware limits (most GPUs ≥ 10) | WebLLM expected | ⚠️ not tested (no Windows machine) |
+| Browsers without WebGPU *and* JSPI (e.g., Safari < 26) | — | Guide search | unit-tested (`chooseTier`) |
+
+Every browser also keeps guide search as an option. WebLLM remains the engine for the assignment's evidence (rounds
+1–5); CPU-mode answers are labeled "not WebLLM" in the chat.

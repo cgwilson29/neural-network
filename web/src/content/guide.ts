@@ -5,6 +5,7 @@
 import guideTemplate from './guide.md?raw'
 import { metrics, modelCard } from '../lib/artifacts'
 import { DAY_NAMES, formatHour } from '../lib/domain'
+import { GuideIndex } from '../chat/retrieval'
 
 const f1 = (x: number) => x.toFixed(1)
 const f0 = (x: number) => x.toFixed(0)
@@ -59,3 +60,7 @@ export function renderGuide(template: string = guideTemplate, tokens = guideToke
 }
 
 export const GUIDE_TEXT = renderGuide()
+
+
+/** BM25 index over the rendered guide — shared by the chatbot prompt and the non-AI guide search. */
+export const GUIDE_INDEX = new GuideIndex(GUIDE_TEXT)

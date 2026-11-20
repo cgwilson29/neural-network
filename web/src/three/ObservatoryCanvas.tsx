@@ -78,6 +78,7 @@ export function ObservatoryCanvas(p: LandscapeProps) {
     <div
       ref={host}
       className="observatory-canvas"
+      data-tour="map"
       role="img"
       aria-label="Three-dimensional map of predicted wait time by staff on shift and patients in queue"
     >
