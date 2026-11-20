@@ -50,7 +50,7 @@ export interface StreamOptions {
 }
 
 export const GENERATION = {
-  temperature: 0.3,
+  temperature: 0.2,
   top_p: 0.8,
   max_tokens: 256,
 } as const

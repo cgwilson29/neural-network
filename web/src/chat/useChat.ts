@@ -53,7 +53,7 @@ export function useChat(scenarioText: string) {
     if (!gpu?.supported) return
     const modelId = pickModelId(tier, gpu.f16)
     setError(null)
-    setProgress({ fraction: 0, text: 'Starting…' })
+    setProgress({ fraction: 0, text: 'Fetching the model configuration…' })
     setPhase('loading')
     try {
       engine.current = await createEngine(modelId, setProgress)
@@ -78,10 +78,10 @@ export function useChat(scenarioText: string) {
       setMessages((m) => [...m, userMsg, { id: botId, role: 'assistant', content: '' }])
       setPhase('generating')
       setChatGenerating(true)
-      const system = buildSystemPrompt(GUIDE_TEXT, scenarioRef.current)
+      const system = buildSystemPrompt(GUIDE_TEXT)
       try {
         const full = await streamReply(e, {
-          messages: buildMessages(system, history, q),
+          messages: buildMessages(system, history, q, scenarioRef.current),
           onDelta: (t) => {
             const shown = stripThink(t)
             setMessages((m) => m.map((x) => (x.id === botId ? { ...x, content: shown } : x)))

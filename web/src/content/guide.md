@@ -1,3 +1,10 @@
+## Quick answers
+- Where did the data come from? From the file clinic-wait-times.csv on the course website, which holds {{rows}} synthetic (simulated) clinic visits, not real patient or clinic data.
+- How did the model compare with the baseline? On the {{test}} held-out test visits, the neural network's average error was {{nnMae}} minutes. The median baseline, which always predicts {{median}} minutes, had an average error of {{baselineMae}} minutes. The network's error was {{reductionPct}}% lower.
+- How well does the model work on other data? The guide has no results for any other dataset: the model was only tested on {{test}} held-out visits from this one synthetic dataset.
+- Is this real patient data? No. All {{rows}} visits are synthetic (made up).
+- Should a real clinic use this to decide staffing? No. This is a class exhibit built on synthetic data, not staffing, medical or business advice.
+
 ## What this site is
 Queue Cartography is a class exhibit (CAI5735) about a small neural network that predicts how long a visitor waits at a clinic. Visitors set the hour, weekday, staff on shift and patients in the queue, and the network predicts the wait right in the browser. A 3-D map shows the predicted wait for every staffing level and queue length.
 

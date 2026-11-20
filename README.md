@@ -69,9 +69,14 @@ site.
 | **Guide + guide bot** | The guide is filled from `metrics.json`, so its numbers always match. The chatbot (WebLLM, Qwen3) runs on-device after the visitor clicks **Enable chat**, shows loading progress, and says "The guide doesn't cover that." when the guide has no answer. If WebGPU is unavailable, the rest of the exhibit is unaffected and recorded answers are shown. |
 
 **Chat models:** Standard = Qwen3-1.7B (~1 GB) or Lite = Qwen3-0.6B (~350 MB). The q4f16 build is used when the GPU
-supports `shader-f16`, otherwise q4f32. Firefox reports a WebGPU storage-buffer limit of 9 where WebLLM's
-pre-check demands 10, so [`web/src/chat/gpuShim.ts`](web/src/chat/gpuShim.ts) reports 10 to WebLLM while
-requesting only the real limit from the device. Both Qwen3 models were verified to load and answer in Firefox 160.
+supports `shader-f16`, otherwise q4f32.
+
+**Browser support for chat:** every WebLLM model library contains paged-attention WebGPU shaders that bind
+**10 storage buffers**. We counted them in the compiled WGSL of the Qwen3, Qwen2.5 and Llama 3.2 libraries.
+Firefox 160 currently allows 9. An early workaround that reported 10 to WebLLM made those shaders fail silently,
+and the model produced nonsense on long prompts (see the test log). So the exhibit now checks the limit and, in
+Firefox, says chat is unavailable and shows the recorded test answers instead. Chat runs in **Chrome, Edge and
+Safari 26+**. Everything else in the exhibit works in every modern browser.
 
 ## Run it locally
 
@@ -100,7 +105,7 @@ Pushing to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy
 - **pytest** (`training/tests`): split integrity, torch vs NumPy encoding, ONNX vs saved grid, artifact checks.
 - **vitest** (`web/tests`): ONNX parity in ONNX Runtime (300 test visits, all 5,250 grid inputs, hidden activations
   to 1e-4), interpolation and contour math, guide/metrics consistency and context budget, prompt assembly,
-  model selection, Firefox shim.
+  model selection, WebGPU capability check (refuses the 9-buffer Firefox limit).
 - **Playwright** (`web/tests/e2e`, Firefox): the model loads in-browser and visitor inputs change predictions;
   chat is gated and the exhibit stays usable without WebGPU; findings render.
 

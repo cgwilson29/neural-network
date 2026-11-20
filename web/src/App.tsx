@@ -10,7 +10,7 @@ import { Footer } from './components/Footer'
 import { useCorePredictions } from './lib/useCorePredictions'
 import { warmUp } from './lib/predictor'
 import { describeScenario } from './lib/domain'
-import { metrics } from './lib/artifacts'
+import { liveScenarioSummary } from './chat/prompt'
 
 export default function App() {
   const core = useCorePredictions()
@@ -22,13 +22,7 @@ export default function App() {
     return () => window.clearTimeout(id)
   }, [])
 
-  const scenarioText = `${describeScenario(core.scenario)}. The network predicts ${core.scenarioWait.toFixed(
-    0,
-  )} minutes; the median baseline always predicts ${metrics.target.trainMedian.toFixed(1)} minutes.${
-    core.plusOneWait !== null
-      ? ` With one more staff member the network predicts ${core.plusOneWait.toFixed(0)} minutes.`
-      : ''
-  }`
+  const scenarioText = liveScenarioSummary(describeScenario(core.scenario), core.scenarioWait, core.plusOneWait)
 
   return (
     <>

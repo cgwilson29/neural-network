@@ -2,11 +2,18 @@ import { describe, expect, it } from 'vitest'
 import { buildMessages, buildSystemPrompt, isRefusal, NOT_COVERED, stripThink } from '../src/chat/prompt'
 
 describe('prompt assembly', () => {
-  it('embeds the guide, the scenario and the refusal phrase', () => {
-    const p = buildSystemPrompt('GUIDE BODY', 'SCENARIO LINE')
+  it('embeds the guide and the refusal phrase, and stays constant across scenarios', () => {
+    const p = buildSystemPrompt('GUIDE BODY')
     expect(p).toContain('GUIDE BODY')
-    expect(p).toContain('SCENARIO LINE')
     expect(p).toContain(NOT_COVERED)
+    expect(buildSystemPrompt('GUIDE BODY')).toBe(p)
+  })
+
+  it('attaches the live prediction only to questions about the visitor’s own setup', () => {
+    const live = 'Monday at 9 am… The network predicts a wait of 100 minutes.'
+    expect(buildMessages('S', [], 'What does it predict for the clinic I have set up?', live).at(-1)!.content).toContain(live)
+    expect(buildMessages('S', [], 'How did your model compare with the baseline?', live).at(-1)!.content).not.toContain(live)
+    expect(buildMessages('S', [], 'How many staff should my clinic hire?', live).at(-1)!.content).not.toContain(live)
   })
 
   it('keeps only the last two exchanges', () => {

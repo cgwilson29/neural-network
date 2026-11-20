@@ -7,7 +7,7 @@ Vite + React + TypeScript exhibit. See the [project README](../README.md) for th
 | `src/three/` | 3-D wait landscape (React Three Fiber): surface, contours, beacons, test visits, label layer |
 | `src/components/` | Page sections and hand-built SVG charts (d3 scales) |
 | `src/lib/` | ONNX Runtime Web session, predictor with precomputed fallback, interpolation/contour math |
-| `src/chat/` | WebLLM guide bot: capability check, model choice, worker + Firefox shim, prompt, state machine |
+| `src/chat/` | WebLLM guide bot: WebGPU capability check, model choice, worker, prompt, state machine |
 | `src/content/guide.md` | The guide the chatbot reads (numbers filled from `src/data/metrics.json`) |
 | `src/data/` | Artifacts written by the training notebook |
 | `public/model/wait_mlp.onnx` | The trained network |

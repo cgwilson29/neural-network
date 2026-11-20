@@ -10,7 +10,7 @@ export interface GpuCheck {
   f16: boolean
   /** Hard blockers (chat can't run). */
   problems: string[]
-  /** Soft notes (chat should run, but with a compatibility workaround). */
+  /** Soft notes shown alongside the Enable button. */
   notes: string[]
   limits?: Record<string, number>
 }
@@ -58,9 +58,13 @@ export async function checkWebGPU(): Promise<GpuCheck> {
   if (limits.maxBufferSize < 256 * MB) problems.push('The GPU’s maximum buffer size is below the 256 MB the language model needs.')
   if (limits.maxStorageBufferBindingSize < 128 * MB) problems.push('The GPU’s storage-buffer limit is below the 128 MB the language model needs.')
   if (limits.maxComputeWorkgroupStorageSize < 32768) problems.push('The GPU’s workgroup memory limit is too small for the language model.')
-  if (limits.maxStorageBuffersPerShaderStage < 9) problems.push('The GPU allows too few storage buffers per shader for the language model.')
-  else if (limits.maxStorageBuffersPerShaderStage < 10)
-    notes.push('Using a compatibility workaround for this browser’s WebGPU limits (tested in Firefox).')
+  // Every WebLLM model library includes paged-attention shaders that bind 10 storage buffers
+  // (we counted them in the compiled WGSL). Firefox currently exposes 9. Faking the limit makes those
+  // shaders fail validation silently and the model writes nonsense, so we refuse instead.
+  if (limits.maxStorageBuffersPerShaderStage < 10)
+    problems.push(
+      `This browser’s WebGPU allows ${limits.maxStorageBuffersPerShaderStage} storage buffers per shader, but the chat model needs 10. This is a current Firefox limit; chat works in Chrome, Edge or Safari.`,
+    )
 
   return { supported: problems.length === 0, f16: adapter.features.has('shader-f16'), problems, notes, limits }
 }

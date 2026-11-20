@@ -23,7 +23,7 @@ export const CHAT_MODELS: Record<ChatTier, ChatModelOption> = {
   lite: {
     tier: 'lite',
     label: 'Lite · Qwen3 0.6B',
-    detail: 'Faster to load on slower connections or smaller GPUs; more likely to miss answers.',
+    detail: 'Faster to load on slow connections or smaller GPUs, but noticeably less reliable: it refuses or garbles more answers.',
     f16: 'Qwen3-0.6B-q4f16_1-MLC',
     f32: 'Qwen3-0.6B-q4f32_1-MLC',
     downloadMB: 352,

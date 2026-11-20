@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { CHAT_MODELS, pickModelId } from '../src/chat/models'
-import { installStorageBufferShim } from '../src/chat/gpuShim'
 
 describe('chat model choice', () => {
   it('uses q4f16 builds when shader-f16 is available, q4f32 otherwise', () => {
@@ -11,36 +10,37 @@ describe('chat model choice', () => {
   })
 })
 
-describe('Firefox storage-buffer shim', () => {
-  function fakeGpu(limit: number) {
-    const requested: Record<string, number | undefined>[] = []
+describe('WebGPU capability check', () => {
+  async function check(limit: number, f16 = true) {
     const adapter = {
-      limits: { maxStorageBuffersPerShaderStage: limit, maxBufferSize: 1 << 30 },
-      features: new Set<string>(),
-      requestDevice: async (d?: { requiredLimits?: Record<string, number | undefined> }) => {
-        requested.push(d?.requiredLimits ?? {})
-        return {}
+      features: new Set(f16 ? ['shader-f16'] : []),
+      limits: {
+        maxBufferSize: 1 << 30,
+        maxStorageBufferBindingSize: 1 << 30,
+        maxComputeWorkgroupStorageSize: 32768,
+        maxStorageBuffersPerShaderStage: limit,
       },
     }
-    return { gpu: { requestAdapter: async () => adapter }, requested }
+    const g = globalThis as unknown as { navigator?: unknown }
+    const saved = g.navigator
+    Object.defineProperty(globalThis, 'navigator', { value: { gpu: { requestAdapter: async () => adapter } }, configurable: true })
+    try {
+      const { checkWebGPU } = await import('../src/chat/capabilities')
+      return await checkWebGPU()
+    } finally {
+      Object.defineProperty(globalThis, 'navigator', { value: saved, configurable: true })
+    }
   }
 
-  it('reports 10 to WebLLM but requests only the real limit from the device', async () => {
-    const { gpu, requested } = fakeGpu(9)
-    installStorageBufferShim(gpu)
-    const a = (await gpu.requestAdapter()) as unknown as {
-      limits: { maxStorageBuffersPerShaderStage: number }
-      requestDevice: (d: unknown) => Promise<unknown>
-    }
-    expect(a.limits.maxStorageBuffersPerShaderStage).toBe(10)
-    await a.requestDevice({ requiredLimits: { maxStorageBuffersPerShaderStage: 10, maxBufferSize: 1 << 28 } })
-    expect(requested[0]).toEqual({ maxStorageBuffersPerShaderStage: 9, maxBufferSize: 1 << 28 })
+  it('accepts adapters with 10+ storage buffers per shader stage', async () => {
+    const r = await check(10)
+    expect(r.supported).toBe(true)
+    expect(r.f16).toBe(true)
   })
 
-  it('leaves capable adapters untouched', async () => {
-    const { gpu } = fakeGpu(10)
-    installStorageBufferShim(gpu)
-    const a = (await gpu.requestAdapter()) as { limits: { maxStorageBuffersPerShaderStage: number } }
-    expect(a.limits.maxStorageBuffersPerShaderStage).toBe(10)
+  it('refuses adapters with 9 (current Firefox) instead of running a broken model', async () => {
+    const r = await check(9)
+    expect(r.supported).toBe(false)
+    expect(r.problems.join(' ')).toMatch(/needs 10/)
   })
 })

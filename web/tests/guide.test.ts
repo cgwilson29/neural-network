@@ -16,6 +16,13 @@ describe('site guide (chatbot context)', () => {
     expect(GUIDE_TEXT).toContain(metrics.dataset.source)
   })
 
+  it('states the baseline comparison plainly in the quick answers', () => {
+    const quick = GUIDE_TEXT.slice(GUIDE_TEXT.indexOf('## Quick answers'), GUIDE_TEXT.indexOf('## What this site is'))
+    expect(quick).toContain(`average error was ${metrics.models.nn.test.mae.toFixed(2)} minutes`)
+    expect(quick).toContain(`average error of ${metrics.models.median_baseline.test.mae.toFixed(2)} minutes`)
+    expect(quick).toMatch(/no results for any other dataset/)
+  })
+
   it('covers the three required test questions and the limits', () => {
     expect(GUIDE_TEXT).toMatch(/synthetic/i) // data source
     expect(GUIDE_TEXT).toMatch(/Median baseline/) // vs baseline
@@ -23,7 +30,7 @@ describe('site guide (chatbot context)', () => {
   })
 
   it('keeps the system prompt within the context budget', () => {
-    const prompt = buildSystemPrompt(GUIDE_TEXT, 'Monday at 9 am, 2 staff on shift, 12 patients in the queue.')
+    const prompt = buildSystemPrompt(GUIDE_TEXT)
     // ~4 characters per token for English; budget 1,800 tokens of the 4,096-token window
     expect(prompt.length / 4).toBeLessThan(1800)
   })
