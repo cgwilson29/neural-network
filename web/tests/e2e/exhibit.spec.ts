@@ -137,3 +137,25 @@ test.describe('onboarding tour', () => {
     await ctx.close()
   })
 })
+
+test.describe('layout', () => {
+  test('the guide-bot button sits under the header and never covers the map legend', async ({ browser, browserName }) => {
+    test.skip(browserName !== 'firefox', 'layout check')
+    for (const viewport of [{ width: 1440, height: 900 }, { width: 1280, height: 720 }, { width: 390, height: 844 }]) {
+      const ctx = await browser.newContext({ viewport })
+      await ctx.addInitScript(() => localStorage.setItem('qc.tour.v1', 'done'))
+      const page = await ctx.newPage()
+      await page.goto('./')
+      const bar = (await page.locator('.topbar').boundingBox())!
+      const btn = (await page.locator('.chat-launcher').boundingBox())!
+      const legend = (await page.locator('.hero-legend').boundingBox())!
+      const overlaps = (a: typeof btn, b: typeof btn) => a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+      expect(btn.y).toBeGreaterThanOrEqual(bar.y + bar.height) // below the header
+      expect(btn.y).toBeLessThan(bar.height + 40) // …right under it
+      expect(btn.x + btn.width).toBeGreaterThanOrEqual(viewport.width - 48) // at the right edge (page gutter ≤ 40px)
+      expect(overlaps(btn, legend)).toBe(false)
+      expect(await page.evaluate(() => document.querySelector('.topbar')!.scrollWidth)).toBeLessThanOrEqual(viewport.width)
+      await ctx.close()
+    }
+  })
+})

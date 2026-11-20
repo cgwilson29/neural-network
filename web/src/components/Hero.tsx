@@ -71,7 +71,7 @@ export function Hero({ core }: { core: CorePredictions }) {
       </Suspense>
 
       <div className="hero-panel">
-        <div className="eyebrow">Clinic wait-time simulator</div>
+        <div className="eyebrow">Clinic wait-time simulator · synthetic data</div>
         <h1 id="hero-title">How long is the wait?</h1>
         <p className="lede">
           A small neural network learned how staffing, queue length and time of day shape clinic waits. Set up a

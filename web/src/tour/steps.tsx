@@ -175,7 +175,7 @@ export const TOUR_STEPS: TourStep[] = [
     id: 'chat',
     target: '[data-tour="chat"]',
     title: 'Ask the guide bot',
-    placement: 'top-end',
+    placement: 'bottom-end',
     scroll: 'center',
     final: true,
     body: () => (

@@ -24,6 +24,8 @@
   --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --font-mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
   --shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
+  /* height of the fixed top bar; the guide-bot button sits just below it */
+  --topbar-h: 55px;
 }
 
 *,
@@ -126,6 +128,7 @@ p {
 }
 .topnav a {
   color: var(--text-secondary);
+  white-space: nowrap;
   text-decoration: none;
   font-size: 14px;
   padding: 6px 10px;
@@ -167,14 +170,26 @@ p {
   gap: 14px;
   font-size: 14px;
 }
-@media (max-width: 1080px) {
+/* The section links need ~1,360px alongside the chips; below that they'd wrap and grow the bar. */
+@media (max-width: 1360px) {
   .topnav {
     display: none;
   }
 }
-@media (max-width: 640px) {
-  .toplinks,
+/* The status chip repeats the hero's "Computed by the trained network in your browser" note. */
+@media (max-width: 820px) {
   .topbar .chip.model {
+    display: none;
+  }
+}
+@media (max-width: 640px) {
+  .toplinks {
+    display: none;
+  }
+}
+/* Phones: the hero's label already says "synthetic data", so drop the chip to keep the bar on screen. */
+@media (max-width: 480px) {
+  .topbar .chip.synthetic {
     display: none;
   }
 }
@@ -962,33 +977,36 @@ details.table-view td:first-child {
 }
 
 /* ---------- Chat ---------- */
+/* Top right, just under the header links, so it never covers the map legend at the bottom right. */
 .chat-launcher {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  right: var(--gutter);
+  top: calc(var(--topbar-h) + 10px);
   z-index: 60;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 18px;
+  padding: 9px 16px;
+  font-size: 14px;
   border-radius: 999px;
   border: 1px solid rgba(95, 224, 242, 0.5);
   background: linear-gradient(180deg, rgba(31, 166, 192, 0.95), rgba(20, 120, 140, 0.95));
   color: #021016;
   font-weight: 650;
   cursor: pointer;
-  box-shadow: 0 10px 30px rgba(31, 166, 192, 0.35);
+  box-shadow: 0 8px 24px rgba(31, 166, 192, 0.3);
 }
 .chat-launcher:hover {
   filter: brightness(1.08);
 }
+/* Opens where the button is: top right, under the header. */
 .chat-panel {
   position: fixed;
-  right: 20px;
-  bottom: 20px;
+  right: var(--gutter);
+  top: calc(var(--topbar-h) + 10px);
   z-index: 60;
   width: min(420px, calc(100vw - 32px));
-  height: min(640px, calc(100svh - 96px));
+  height: min(640px, calc(100svh - var(--topbar-h) - 30px));
   display: flex;
   flex-direction: column;
   border-radius: 16px;
@@ -1003,7 +1021,9 @@ details.table-view td:first-child {
     right: 16px;
     left: 16px;
     width: auto;
+    top: calc(var(--topbar-h) + 8px);
     bottom: 12px;
+    height: auto;
   }
 }
 .chat-head {
@@ -1225,8 +1245,8 @@ details.table-view td:first-child {
 @media (max-width: 560px) {
   .chat-launcher {
     right: 14px;
-    bottom: 14px;
-    padding: 10px 14px;
+    top: calc(var(--topbar-h) + 8px);
+    padding: 8px 14px;
   }
   .launcher-long {
     display: none;
@@ -1365,7 +1385,7 @@ details.table-view td:first-child {
   left: auto !important;
   top: auto !important;
   right: 24px;
-  bottom: 84px; /* above the chat launcher */
+  bottom: 24px;
   width: min(380px, calc(100vw - 48px));
 }
 @media (max-width: 640px) {

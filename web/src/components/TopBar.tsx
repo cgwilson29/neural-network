@@ -1,3 +1,4 @@
+import { useLayoutEffect, useRef } from 'react'
 import { SITE_LINKS } from '../lib/artifacts'
 import { useExhibit } from '../state/store'
 import { useTour } from '../tour/useTour'
@@ -23,10 +24,23 @@ export function ContourMark({ size = 26 }: { size?: number }) {
 export function TopBar() {
   const modelStatus = useExhibit((s) => s.modelStatus)
   const startTour = useTour((s) => s.start)
+  const bar = useRef<HTMLElement>(null)
+
+  // Publish the bar's real height so the guide-bot button and panel always sit just below it.
+  useLayoutEffect(() => {
+    const el = bar.current
+    if (!el) return
+    const set = () => document.documentElement.style.setProperty('--topbar-h', `${Math.round(el.getBoundingClientRect().height)}px`)
+    set()
+    if (typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(set)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
   const statusText =
     modelStatus === 'ready' ? 'Network running in browser' : modelStatus === 'loading' ? 'Loading network…' : 'Precomputed mode'
   return (
-    <header className="topbar">
+    <header className="topbar" ref={bar}>
       <a className="wordmark" href="#explore">
         <ContourMark />
         Queue Cartography
@@ -42,7 +56,7 @@ export function TopBar() {
       <button className="chip tour-btn" onClick={startTour} aria-label="Start the guided tour">
         <span aria-hidden="true">✦</span> Tour
       </button>
-      <span className="chip" title="All 2,000 visits in the dataset are simulated">
+      <span className="chip synthetic" title="All 2,000 visits in the dataset are simulated">
         Synthetic data
       </span>
       <span className="chip model" role="status">
