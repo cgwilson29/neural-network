@@ -69,6 +69,8 @@ site.
 | **Guide + guide bot** | The guide is filled from `metrics.json`, so its numbers always match the site. The bot answers from the 2–3 most relevant guide passages, says "The guide doesn't cover that." when they don't answer a question, and runs entirely on the visitor's device after they click **Enable chat**. |
 | **Onboarding tour** | A first-visit welcome card offers a 60-second, 10-step tour; the "Tour" button restarts it. Several steps are learn-by-doing (add a staff member, lengthen the queue, pin a scenario) and advance when the visitor acts. It is keyboard-accessible, respects reduced motion, and becomes a bottom sheet on phones. |
 
+![Onboarding tour (a learn-by-doing step) and the guide bot answering from guide search](docs/screenshot-tour-chat.png)
+
 ### The guide bot in every browser
 
 | Tier | Engine | Who gets it | Model (chosen by bake-off) |
